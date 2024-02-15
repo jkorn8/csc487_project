@@ -249,8 +249,6 @@ def get_data(num_faces=10000, num_unknown=0, percent_training_data=10.0,
             if distribution == "even":
                 j = 0
             total_people_processed += 1
-
-        # Lol this break chain is scuffed but whatever, just need a way to exit once done
         if total_people_processed >= num_faces:
             break
 
@@ -263,11 +261,11 @@ def get_data(num_faces=10000, num_unknown=0, percent_training_data=10.0,
     print("Done Retrieving images!")
     del do_process_photo, t1, t_orig, total_photos, total_processed, total_people_processed, j
 
-    if add_mirrors or (num_rotations == 1):
+    if add_mirrors or (num_rotations >= 1):
         augment_data(test_images, test_labels, add_mirrors, num_rotations)
         # augment_data(training_images, training_labels, add_mirrors, num_rotations)
-        # This line adds data augmentations to training data too, which we may or may not want to do
 
+    print("Converting to numpy arrays...")  # Appending to python array is faster than appending to numpy array
     test_images, test_labels = shuffle_arrays(test_images, test_labels)
     training_images, training_labels = shuffle_arrays(training_images, training_labels)
     test_images, test_labels = np.array(test_images), np.array(test_labels)
