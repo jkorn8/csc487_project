@@ -86,6 +86,7 @@ Input:
 Output:
     None
 '''
+MAX_ROTATION_DEGREES = 15  # Between 0 and 360
 def augment_data(images, labels, mirror=True, num_rotate=1):
     t1 = time.time()
     t_orig = time.time()
@@ -106,7 +107,7 @@ def augment_data(images, labels, mirror=True, num_rotate=1):
         print("Done mirroring images!")
 
     if num_rotate > 0:
-        rotate_image = tf.keras.layers.RandomRotation(0.05)
+        rotate_image = tf.keras.layers.RandomRotation(factor=MAX_ROTATION_DEGREES/360)
         total_photos = len(images)
         total_processed = 0
         print("Rotating images...")
@@ -133,6 +134,8 @@ Output:
     None
 '''
 def shuffle_arrays(l1, l2):
+    if len(l1 != len(l2)):
+        raise ValueError("Arrays must be same length")
     arr = []
     l1_final = [0]*len(l1)
     l2_final = [0]*len(l2)
