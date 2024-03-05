@@ -4,6 +4,10 @@ import time
 import random
 from keras.utils import load_img, img_to_array
 from keras.applications import vgg19
+import os
+import albumentations as alb
+import cv2
+from PIL import Image
 
 '''
 Helper function for displaying the process current progress of the process
@@ -66,16 +70,14 @@ Input:
 Output: 
     Array of size "size", "percent_distribution" percent randomly filled with 1's, rest filled with 0's
 '''
-def get_distribution_array(size, percent_training, percent_validation, percent_testing):
+def get_distribution_array(size, percent_training, percent_validation):
     # Training is 0
     # Validation is 1
-    # Testing is 2
-    if percent_training <= 0 or percent_validation <= 0 or percent_testing <= 0 or percent_training + percent_validation + percent_testing > 100:
-        raise ValueError('percent_training, percent_validation, and percent_testing must add to 100')
+    if percent_training <= 0 or percent_validation <= 0 or percent_training + percent_validation != 100:
+        raise ValueError('percent_training and percent_validation must add to 100')
     number_of_0s = int((size * percent_training) // 1)
     number_of_1s = int((size * percent_validation) // 1)
-    number_of_2s = int((size * percent_testing) // 1)
-    arr = [0] * (number_of_0s) + [1] * (number_of_1s) + [2] * number_of_2s
+    arr = [0] * (number_of_0s) + [1] * (number_of_1s)
     while len(arr) < size:
         arr.append(0)
     random.shuffle(arr)
@@ -121,5 +123,85 @@ def deprocess_image(x):
     # 'BGR'->'RGB'
     x = x[:, :, ::-1]
     x = np.clip(x, 0, 255).astype('uint8')
-    x = x/255
     return x
+
+
+def do_data_preprocessing(num_images, num_augmentations_per_image, input_dimensions,
+                          percent_training, percent_validation,
+                          known_face_path, unknown_face_path,
+                          testing_path_positive, testing_path_negative,
+                          validation_path_positive, validation_path_negative):
+
+    known_faces_dir = os.listdir(known_face_path)
+    unknown_faces_dir = os.listdir(unknown_face_path)
+    num_known_faces = min(len(known_faces_dir), num_images)
+    num_unknown_faces = min(len(unknown_faces_dir), num_images)
+
+    process_known_face = get_distribution_array(num_known_faces, percent_training=percent_training,
+                                                percent_validation=percent_validation)
+    process_unknown_face = get_distribution_array(num_unknown_faces, percent_training=percent_training,
+                                                  percent_validation=percent_validation)
+
+    augmentor = alb.Compose([alb.HorizontalFlip(p=0.5),
+                             alb.RandomBrightnessContrast(p=0.3),
+                             alb.RandomGamma(p=0.3),
+                             alb.RGBShift(p=.3),
+                             alb.VerticalFlip(p=0.2),
+                             alb.Rotate(limit=20, p=.5, interpolation=cv2.INTER_LINEAR)])
+
+    t_orig = time.time()
+    total_photos = num_known_faces
+    total_processed = 0
+    t = time.time()
+    print("Processing {} known faces...".format(total_photos))
+    for i in range(len(known_faces_dir)):
+        if process_known_face[i] == 0:
+            img = deprocess_image(
+                preprocess(os.path.join(known_face_path, known_faces_dir[i]), input_dimensions))
+            for j in range(num_augmentations_per_image):
+                aug_img = Image.fromarray(np.array(augmentor(image=img)['image']))
+                aug_img.save(os.path.join(testing_path_positive, "known_aug" + str(j) + "_" + known_faces_dir[i]))
+            img = Image.fromarray(img)
+            img.save(os.path.join(testing_path_positive, "known_" + known_faces_dir[i]))
+        else:
+            img = deprocess_image(
+                preprocess(os.path.join(known_face_path, known_faces_dir[i]), input_dimensions))
+            for j in range(num_augmentations_per_image):
+                aug_img = Image.fromarray(np.array(augmentor(image=img)['image']))
+                aug_img.save(os.path.join(validation_path_positive, "known_aug" + str(j) + "_" + known_faces_dir[i]))
+            img = Image.fromarray(img)
+            img.save(os.path.join(validation_path_positive, "known_" + known_faces_dir[i]))
+        total_processed += 1
+        t = display_progressbar(t1=t, t_orig=t_orig, total_photos=total_photos, total_processed=total_processed)
+    display_progressbar(t1=10, t_orig=0, total_photos=total_photos, total_processed=total_photos)
+    print("\r\nDone!")
+
+    t_orig = time.time()
+    total_photos = num_unknown_faces
+    total_processed = 0
+    t = time.time()
+    print("Processing {} unknown faces...".format(total_photos))
+    for i in range(len(unknown_faces_dir)):
+        if i > num_unknown_faces:
+            break
+        if process_unknown_face[i] == 0:
+            img = deprocess_image(
+                preprocess(os.path.join(unknown_face_path, unknown_faces_dir[i]), input_dimensions))
+            for j in range(num_augmentations_per_image):
+                aug_img = Image.fromarray(np.array(augmentor(image=img)['image']))
+                aug_img.save(os.path.join(testing_path_negative, "unknown_aug" + str(j) + "_" + unknown_faces_dir[i]))
+            img = Image.fromarray(img)
+            img.save(os.path.join(testing_path_negative, "unknown_" + unknown_faces_dir[i]))
+        else:
+            img = deprocess_image(
+                preprocess(os.path.join(unknown_face_path, unknown_faces_dir[i]), input_dimensions))
+            for j in range(num_augmentations_per_image):
+                aug_img = Image.fromarray(np.array(augmentor(image=img)['image']))
+                aug_img.save(
+                    os.path.join(validation_path_negative, "unknown_aug" + str(j) + "_" + unknown_faces_dir[i]))
+            img = Image.fromarray(img)
+            img.save(os.path.join(validation_path_negative, "unknown_" + unknown_faces_dir[i]))
+        total_processed += 1
+        t = display_progressbar(t1=t, t_orig=t_orig, total_photos=total_photos, total_processed=total_processed)
+    display_progressbar(t1=10, t_orig=0, total_photos=total_photos, total_processed=total_photos)
+    print("\r\nDone!")
