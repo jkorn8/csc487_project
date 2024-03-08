@@ -9,29 +9,26 @@ import albumentations as alb
 import cv2
 from PIL import Image
 
-'''
-Helper function for displaying the process current progress of the process
-Input: 
-    current (int): current number of processed images
-    total (int): total number of images to process
-Output: 
-    A string progressbar displaying the current progress of the process
-'''
+
 def get_progressbar(current, total):
+    # Helper function for displaying the process current progress of the process
+    # Input:
+    #     current (int): current number of processed images
+    #     total (int): total number of images to process
+    # Output:
+    #     A string progressbar displaying the current progress of the process
     progress = round((current/total)*30)
     if progress == 30:
         return '[==============================]'
     return '[' + progress * '=' + '>' + max((29 - progress), 0) * '-' + ']'
 
 
-'''
-Helper function for displaying the estimated amount of time remaining for process
-Input: 
-    secs (int): number of seconds
-Output: 
-    String format of number of minutes and seconds
-'''
 def get_minutes_from_seconds(secs):
+    # Helper function for displaying the estimated amount of time remaining for process
+    # Input:
+    #     secs (int): number of seconds
+    # Output:
+    #     String format of number of minutes and seconds
     m = secs//60
     s = secs % 60
     if len(str(s)) == 2:
@@ -39,18 +36,15 @@ def get_minutes_from_seconds(secs):
     return str(m) + ":0" + str(s)
 
 
-'''
-Helper function for displaying the progressbar and estimated time remaining for operation
-Input:
-    t1 (time): time since previous display of progressbar
-    t_orig (time): time since start of processing data
-    total_photos (int): total number of photos to process
-    total_processed (int): total number of photos processed so far
-Output:
-    Either old time (if don't display progressbar) or new time (if display progressbar)
-    
-'''
 def display_progressbar(t1, t_orig, total_photos, total_processed):
+    # Helper function for displaying the progressbar and estimated time remaining for operation
+    # Input:
+    #     t1 (time): time since previous display of progressbar
+    #     t_orig (time): time since start of processing data
+    #     total_photos (int): total number of photos to process
+    #     total_processed (int): total number of photos processed so far
+    # Output:
+    #     Either old time (if don't display progressbar) or new time (if display progressbar)
     t2 = time.time()
     if t2 - t1 > .5:
         sys.stdout.flush()
@@ -62,15 +56,13 @@ def display_progressbar(t1, t_orig, total_photos, total_processed):
     return t1
 
 
-'''
-Helper function that gives array filled with specified number of 1's in random indices
-Input: 
-    size (int), size of array
-    percent_distribution (float), percentage (as a decimal) of the array to fill with 1's
-Output: 
-    Array of size "size", "percent_distribution" percent randomly filled with 1's, rest filled with 0's
-'''
 def get_distribution_array(size, percent_training, percent_validation):
+    # Helper function that gives array filled with specified number of 1's in random indices
+    # Input:
+    #     size (int), size of array
+    #     percent_distribution (float), percentage (as a decimal) of the array to fill with 1's
+    # Output:
+    #     Array of size "size", "percent_distribution" percent randomly filled with 1's, rest filled with 0's
     # Training is 0
     # Validation is 1
     if percent_training <= 0 or percent_validation <= 0 or percent_training + percent_validation != 100:
@@ -126,28 +118,41 @@ def deprocess_image(x):
     return x
 
 
-def do_data_preprocessing(num_images, num_augmentations_per_image, input_dimensions,
+def get_max_image_index_for_known_images(known_faces_path):
+    largest = 0
+    for im in os.listdir(known_faces_path):
+        num = int(im.split('.')[0])
+        if num > largest:
+            largest = num
+    return largest
+
+
+def do_data_preprocessing(num_images, input_dimensions,
                           percent_training, percent_validation,
                           known_face_path, unknown_face_path,
                           testing_path_positive, testing_path_negative,
                           validation_path_positive, validation_path_negative):
 
     known_faces_dir = os.listdir(known_face_path)
+    random.shuffle(known_faces_dir)
     unknown_faces_dir = os.listdir(unknown_face_path)
+    random.shuffle(unknown_faces_dir)
     num_known_faces = min(len(known_faces_dir), num_images)
-    num_unknown_faces = min(len(unknown_faces_dir), num_images)
+    num_unknown_faces = min(len(unknown_faces_dir), num_images)*10
 
     process_known_face = get_distribution_array(num_known_faces, percent_training=percent_training,
                                                 percent_validation=percent_validation)
     process_unknown_face = get_distribution_array(num_unknown_faces, percent_training=percent_training,
                                                   percent_validation=percent_validation)
 
-    augmentor = alb.Compose([alb.HorizontalFlip(p=0.5),
-                             alb.RandomBrightnessContrast(p=0.3),
-                             alb.RandomGamma(p=0.3),
-                             alb.RGBShift(p=.3),
-                             alb.VerticalFlip(p=0.2),
-                             alb.Rotate(limit=20, p=.5, interpolation=cv2.INTER_LINEAR)])
+    augmentor = alb.Compose([
+        alb.HorizontalFlip(p=0.5),
+        alb.RandomBrightnessContrast(p=0.3, brightness_limit=0.2, contrast_limit=0.2),
+        alb.RandomGamma(p=0.3, gamma_limit=(80, 120)),
+        alb.RGBShift(p=0.3, r_shift_limit=20, g_shift_limit=20, b_shift_limit=20),
+        alb.VerticalFlip(p=0.2),
+        alb.Rotate(limit=20, p=0.5, interpolation=cv2.INTER_LINEAR)
+    ])
 
     t_orig = time.time()
     total_photos = num_known_faces
@@ -155,20 +160,15 @@ def do_data_preprocessing(num_images, num_augmentations_per_image, input_dimensi
     t = time.time()
     print("Processing {} known faces...".format(total_photos))
     for i in range(len(known_faces_dir)):
-        if process_known_face[i] == 0:
+        do_process = process_known_face[i]
+        if do_process == 0:
             img = deprocess_image(
                 preprocess(os.path.join(known_face_path, known_faces_dir[i]), input_dimensions))
-            for j in range(num_augmentations_per_image):
-                aug_img = Image.fromarray(np.array(augmentor(image=img)['image']))
-                aug_img.save(os.path.join(testing_path_positive, "known_aug" + str(j) + "_" + known_faces_dir[i]))
             img = Image.fromarray(img)
             img.save(os.path.join(testing_path_positive, "known_" + known_faces_dir[i]))
         else:
             img = deprocess_image(
                 preprocess(os.path.join(known_face_path, known_faces_dir[i]), input_dimensions))
-            for j in range(num_augmentations_per_image):
-                aug_img = Image.fromarray(np.array(augmentor(image=img)['image']))
-                aug_img.save(os.path.join(validation_path_positive, "known_aug" + str(j) + "_" + known_faces_dir[i]))
             img = Image.fromarray(img)
             img.save(os.path.join(validation_path_positive, "known_" + known_faces_dir[i]))
         total_processed += 1
@@ -187,18 +187,11 @@ def do_data_preprocessing(num_images, num_augmentations_per_image, input_dimensi
         if process_unknown_face[i] == 0:
             img = deprocess_image(
                 preprocess(os.path.join(unknown_face_path, unknown_faces_dir[i]), input_dimensions))
-            for j in range(num_augmentations_per_image):
-                aug_img = Image.fromarray(np.array(augmentor(image=img)['image']))
-                aug_img.save(os.path.join(testing_path_negative, "unknown_aug" + str(j) + "_" + unknown_faces_dir[i]))
             img = Image.fromarray(img)
             img.save(os.path.join(testing_path_negative, "unknown_" + unknown_faces_dir[i]))
         else:
             img = deprocess_image(
                 preprocess(os.path.join(unknown_face_path, unknown_faces_dir[i]), input_dimensions))
-            for j in range(num_augmentations_per_image):
-                aug_img = Image.fromarray(np.array(augmentor(image=img)['image']))
-                aug_img.save(
-                    os.path.join(validation_path_negative, "unknown_aug" + str(j) + "_" + unknown_faces_dir[i]))
             img = Image.fromarray(img)
             img.save(os.path.join(validation_path_negative, "unknown_" + unknown_faces_dir[i]))
         total_processed += 1
