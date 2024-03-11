@@ -53,7 +53,7 @@ while cap.isOpened():
     if cv2.waitKey(10) & 0xFF == ord('v'):
         cv2.imwrite(os.path.join('application_data', 'input_image', 'input_image.jpg'), frame)
         # Run verification
-        results, verified = verify(siamese_model, 0.9, 0.7)
+        results, verified = verify(siamese_model, 0.7, 0.7)
         print(verified)
 
     if cv2.waitKey(10) & 0xFF == ord('q'):

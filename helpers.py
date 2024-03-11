@@ -121,56 +121,80 @@ def deprocess_image(x):
 def get_max_image_index_for_known_images(known_faces_path):
     largest = 0
     for im in os.listdir(known_faces_path):
-        num = int(im.split('.')[0])
-        if num > largest:
-            largest = num
+        try:
+            num = int(im.split('.')[0])
+            if num > largest:
+                largest = num
+        except ValueError:
+            num = int((im.replace('_', '.')).split('.')[1])
+            if num > largest:
+                largest = num
+        except Exception as e:
+            raise e
     return largest
 
 
 def do_data_preprocessing(num_images, input_dimensions,
                           percent_training, percent_validation,
-                          known_face_path, unknown_face_path,
-                          testing_path_positive, testing_path_negative,
-                          validation_path_positive, validation_path_negative):
+                          known_face_1_path, known_face_2_path, unknown_face_path,
+                          testing_path_0, testing_path_1, testing_path_2,
+                          validation_path_0, validation_path_1, validation_path_2):
 
-    known_faces_dir = os.listdir(known_face_path)
-    random.shuffle(known_faces_dir)
+    known_face_1_dir = os.listdir(known_face_1_path)
+    random.shuffle(known_face_1_dir)
+    known_face_2_dir = os.listdir(known_face_2_path)
+    random.shuffle(known_face_2_dir)
     unknown_faces_dir = os.listdir(unknown_face_path)
     random.shuffle(unknown_faces_dir)
-    num_known_faces = min(len(known_faces_dir), num_images)
-    num_unknown_faces = min(len(unknown_faces_dir), num_images)*10
+    num_known_faces = num_images
+    num_unknown_faces = min(round(num_images*(1+1/2)), len(unknown_faces_dir))
 
-    process_known_face = get_distribution_array(num_known_faces, percent_training=percent_training,
+    process_known_face_1 = get_distribution_array(num_known_faces, percent_training=percent_training,
                                                 percent_validation=percent_validation)
+    process_known_face_2 = get_distribution_array(num_known_faces, percent_training=percent_training,
+                                                  percent_validation=percent_validation)
     process_unknown_face = get_distribution_array(num_unknown_faces, percent_training=percent_training,
                                                   percent_validation=percent_validation)
 
-    augmentor = alb.Compose([
-        alb.HorizontalFlip(p=0.5),
-        alb.RandomBrightnessContrast(p=0.3, brightness_limit=0.2, contrast_limit=0.2),
-        alb.RandomGamma(p=0.3, gamma_limit=(80, 120)),
-        alb.RGBShift(p=0.3, r_shift_limit=20, g_shift_limit=20, b_shift_limit=20),
-        alb.VerticalFlip(p=0.2),
-        alb.Rotate(limit=20, p=0.5, interpolation=cv2.INTER_LINEAR)
-    ])
-
     t_orig = time.time()
-    total_photos = num_known_faces
+    total_photos = min(num_known_faces, len(known_face_1_dir))
     total_processed = 0
     t = time.time()
-    print("Processing {} known faces...".format(total_photos))
-    for i in range(len(known_faces_dir)):
-        do_process = process_known_face[i]
+    print("Processing {} known faces in dir 0...".format(total_photos))
+    for i in range(len(known_face_1_dir)):
+        do_process = process_known_face_1[i]
         if do_process == 0:
             img = deprocess_image(
-                preprocess(os.path.join(known_face_path, known_faces_dir[i]), input_dimensions))
+                preprocess(os.path.join(known_face_1_path, known_face_1_dir[i]), input_dimensions))
             img = Image.fromarray(img)
-            img.save(os.path.join(testing_path_positive, "known_" + known_faces_dir[i]))
+            img.save(os.path.join(testing_path_0, "known_" + known_face_1_dir[i]))
         else:
             img = deprocess_image(
-                preprocess(os.path.join(known_face_path, known_faces_dir[i]), input_dimensions))
+                preprocess(os.path.join(known_face_1_path, known_face_1_dir[i]), input_dimensions))
             img = Image.fromarray(img)
-            img.save(os.path.join(validation_path_positive, "known_" + known_faces_dir[i]))
+            img.save(os.path.join(validation_path_0, "known_" + known_face_1_dir[i]))
+        total_processed += 1
+        t = display_progressbar(t1=t, t_orig=t_orig, total_photos=total_photos, total_processed=total_processed)
+    display_progressbar(t1=10, t_orig=0, total_photos=total_photos, total_processed=total_photos)
+    print("\r\nDone!")
+
+    t_orig = time.time()
+    total_photos = min(num_known_faces, len(known_face_2_dir))
+    total_processed = 0
+    t = time.time()
+    print("Processing {} known faces in dir 1...".format(total_photos))
+    for i in range(len(known_face_2_dir)):
+        do_process = process_known_face_2[i]
+        if do_process == 0:
+            img = deprocess_image(
+                preprocess(os.path.join(known_face_2_path, known_face_2_dir[i]), input_dimensions))
+            img = Image.fromarray(img)
+            img.save(os.path.join(testing_path_1, "known_" + known_face_2_dir[i]))
+        else:
+            img = deprocess_image(
+                preprocess(os.path.join(known_face_2_path, known_face_2_dir[i]), input_dimensions))
+            img = Image.fromarray(img)
+            img.save(os.path.join(validation_path_1, "known_" + known_face_2_dir[i]))
         total_processed += 1
         t = display_progressbar(t1=t, t_orig=t_orig, total_photos=total_photos, total_processed=total_processed)
     display_progressbar(t1=10, t_orig=0, total_photos=total_photos, total_processed=total_photos)
@@ -188,12 +212,12 @@ def do_data_preprocessing(num_images, input_dimensions,
             img = deprocess_image(
                 preprocess(os.path.join(unknown_face_path, unknown_faces_dir[i]), input_dimensions))
             img = Image.fromarray(img)
-            img.save(os.path.join(testing_path_negative, "unknown_" + unknown_faces_dir[i]))
+            img.save(os.path.join(testing_path_2, "unknown_" + unknown_faces_dir[i]))
         else:
             img = deprocess_image(
                 preprocess(os.path.join(unknown_face_path, unknown_faces_dir[i]), input_dimensions))
             img = Image.fromarray(img)
-            img.save(os.path.join(validation_path_negative, "unknown_" + unknown_faces_dir[i]))
+            img.save(os.path.join(validation_path_2, "unknown_" + unknown_faces_dir[i]))
         total_processed += 1
         t = display_progressbar(t1=t, t_orig=t_orig, total_photos=total_photos, total_processed=total_processed)
     display_progressbar(t1=10, t_orig=0, total_photos=total_photos, total_processed=total_photos)

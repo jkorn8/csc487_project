@@ -11,13 +11,13 @@ datagen = ImageDataGenerator()
 train_generator = datagen.flow_from_directory(
     TESTING_PATH,
     target_size=MODEL_INPUT_IMAGE_DIMENSIONS,
-    class_mode='binary',
+    class_mode='categorical',
     shuffle=True
 )
 val_generator = datagen.flow_from_directory(
     VALIDATION_PATH,
     target_size=MODEL_INPUT_IMAGE_DIMENSIONS,
-    class_mode='binary',
+    class_mode='categorical',
     shuffle=True
 )
 
@@ -60,13 +60,13 @@ model.add(layers.Dropout(0.5))
 model.add(layers.Dense(256, activation='relu'))
 model.add(layers.BatchNormalization())
 model.add(layers.Dropout(0.5))
-model.add(layers.Dense(1, activation='sigmoid'))
+model.add(layers.Dense(3, activation='sigmoid'))
 
 reduce_lr = cb.ReduceLROnPlateau(monitor='val_loss',
                               factor=0.2,  # Factor by which the learning rate will be reduced
                               patience=4,  # Number of epochs with no improvement after which learning rate will be reduced
                               verbose=1)
-model_checkpoint = cb.ModelCheckpoint('model_final_2.h5',
+model_checkpoint = cb.ModelCheckpoint('model_best_with_josh_1.h5',
                                       monitor='val_accuracy',  # Choose the metric to monitor (e.g., val_loss, val_accuracy)
                                       mode='max',  # 'max' if monitoring accuracy, 'min' if monitoring loss
                                       save_best_only=True,  # Save only the best model
@@ -76,7 +76,7 @@ csv_logger = cb.CSVLogger('training.log')
 
 # Compile the model
 model.compile(optimizer='adam',
-              loss='binary_crossentropy',
+              loss='categorical_crossentropy',
               metrics=['accuracy'])
 
 model.summary()
@@ -99,4 +99,4 @@ plt.ylabel("Loss")
 plt.legend()
 plt.show()
 
-model.save('model_final_1.h5')
+model.save('model_final_with_josh_1.h5')
