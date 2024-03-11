@@ -19,6 +19,9 @@ for file in os.listdir(MODEL_NEGATIVE_FAILED_PATH):
             shutil.rmtree(file_path)
     except Exception as e:
         print('Failed to delete %s. Reason: %s' % (file_path, e))
+=======
+model = tf.keras.models.load_model('model_final_2.h5')
+>>>>>>> 7db2ea87a4597aa020387566c4b1ecabd8bd221a
 
 for file in os.listdir(MODEL_POSITIVE_FAILED_PATH):
     file_path = os.path.join(MODEL_POSITIVE_FAILED_PATH, file)

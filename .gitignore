@@ -162,6 +162,15 @@ cython_debug/
 photos/
 demo/initial_test.h5
 .DS_Store
+<<<<<<< HEAD
 model_final*
 model_best*
 
+=======
+facial_recog_attempt_2/data/
+facial_recog_attempt_2/Face Images/
+facial_recog_attempt_2/public_images/
+facial_recog_attempt_2/training
+app_data/
+testing.jpg
+>>>>>>> 7db2ea87a4597aa020387566c4b1ecabd8bd221a
