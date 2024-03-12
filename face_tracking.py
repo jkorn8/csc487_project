@@ -2,16 +2,16 @@ import cv2
 import numpy as np
 import os
 import time
-from helpers import display_progressbar, preprocess, deprocess_image
-from constants import MODEL_INPUT_IMAGE_DIMENSIONS
+from helpers import display_progressbar, preprocess, deprocess_image, get_deepface_prediction, model_prediction
+from constants import MODEL_INPUT_IMAGE_DIMENSIONS, PATH_TO_FACE_MATCHING, NAMES
 import random
 import albumentations as alb
 from PIL import Image
 
-TIMESTEP_FOR_IMAGE_DOWNLOAD = 0
 CAMERA_INDEX = 0    # May need to change to 1, different index for different devices
 COLOR_RED = (0, 0, 255)
 COLOR_GREEN = (0, 255, 0)
+COLOR_YELLOW = (0, 255, 255)
 
 
 def list_possible_camera_indices():
@@ -56,9 +56,22 @@ def collect_data_helper(image, coords, output_directory_path, im_num, num_augmen
 
 
 def face_detection_helper(collect_data, output_directory_path='test_images',
-                          max_num_images=10000, model=None, starting_index=0, num_augmentations_per_image=10):
+                          max_num_images=10000, model=None, starting_index=0,
+                          num_augmentations_per_image=10, timestep_for_image_download=0,
+                          required_bound=None, certainty_bound=None):
     face_detector = cv2.dnn.readNetFromCaffe("do_not_delete/deploy.prototxt.txt",
                                              "do_not_delete/res10_300x300_ssd_iter_140000.caffemodel")
+
+    if model is not None:
+        face_images = []
+        for folder in os.listdir(PATH_TO_FACE_MATCHING):
+            path = os.path.join(PATH_TO_FACE_MATCHING, folder)
+            if os.path.isdir(path):
+                id = int(folder)
+                for image in os.listdir(path):
+                    if image.endswith(".jpg"):
+                        blob = deprocess_image(preprocess(os.path.join(path, image), MODEL_INPUT_IMAGE_DIMENSIONS))
+                        face_images.append((id, blob))
 
     cap = cv2.VideoCapture(CAMERA_INDEX)
     im_num = 0
@@ -85,7 +98,7 @@ def face_detection_helper(collect_data, output_directory_path='test_images',
                 box = detections[0, 0, k, 3:7] * np.array([w, h, w, h])
                 (startX, startY, endX, endY) = box.astype("int")
                 t2 = time.time()
-                if (t2 - t1) > TIMESTEP_FOR_IMAGE_DOWNLOAD:
+                if (t2 - t1) > timestep_for_image_download:
                     collect_data_helper(image=image, coords=(max(startX, 0), max(startY, 0), endX, endY),
                                         output_directory_path=output_directory_path, im_num=im_num + starting_index,
                                         num_augmentations_per_image=num_augmentations_per_image)
@@ -101,16 +114,26 @@ def face_detection_helper(collect_data, output_directory_path='test_images',
                 if model is not None:
                     im = cv2.resize(image[max(startY, 0):endY, max(startX, 0):endX],
                                     MODEL_INPUT_IMAGE_DIMENSIONS, interpolation=cv2.INTER_LINEAR)
-                    pred = model.predict(np.array([im[:, :, ::-1]]))
-                    if pred is not None and pred[2] < .4:
-                        if pred[0] > .6:
-                            cv2.putText(image, 'Stephen', (endX+5, endY), cv2.FONT_HERSHEY_SIMPLEX,
-                                    1, COLOR_GREEN, 2, cv2.LINE_AA)
-                            cv2.rectangle(image, (startX, startY), (endX+5, endY), COLOR_GREEN, 5)
-                        elif pred[1] > .6:
-                            cv2.putText(image, 'Josh', (endX + 5, endY), cv2.FONT_HERSHEY_SIMPLEX,
-                                        1, COLOR_GREEN, 2, cv2.LINE_AA)
-                            cv2.rectangle(image, (startX, startY), (endX + 5, endY), COLOR_GREEN, 5)
+                    recoc_pred = model.predict(np.array([im[:, :, ::-1]]), verbose=0)[0]
+                    # match_pred = get_deepface_prediction(im, face_images)
+                    match_pred = [None, None]
+                    pred = model_prediction(recoc_pred, match_pred, required_bound=required_bound, certainty_bound=certainty_bound)
+
+                    if not (pred is None):
+                        if pred == "unknown":
+                            cv2.putText(image, 'unknown', (endX, endY), cv2.FONT_HERSHEY_SIMPLEX,
+                                        1, COLOR_RED, 2, cv2.LINE_AA)
+                            cv2.rectangle(image, (startX, startY), (endX, endY), COLOR_RED, 5)
+                        elif pred == "unsure":
+                            cv2.putText(image, 'unsure', (endX, endY), cv2.FONT_HERSHEY_SIMPLEX,
+                                        1, COLOR_RED, 2, cv2.LINE_AA)
+                            cv2.rectangle(image, (startX, startY), (endX, endY), COLOR_YELLOW, 5)
+                        else:
+                            for i in range(len(NAMES)):
+                                if pred == str(i):
+                                    cv2.putText(image, NAMES[i], (endX + 5, endY), cv2.FONT_HERSHEY_SIMPLEX,
+                                                1, COLOR_GREEN, 2, cv2.LINE_AA)
+                                    cv2.rectangle(image, (startX, startY), (endX + 5, endY), COLOR_GREEN, 5)
                     else:
                         cv2.putText(image, 'Unknown', (endX, endY), cv2.FONT_HERSHEY_SIMPLEX,
                                     1, COLOR_RED, 2, cv2.LINE_AA)
@@ -257,9 +280,9 @@ def process_unknown_digiface_faces(input_path, output_path, face_detector, num_a
         for e in exceptions:
             print(e)
 
-def face_detection(model):
-    face_detection_helper(collect_data=False, model=model)
+def face_detection(model, required_bound, certainty_bound):
+    face_detection_helper(collect_data=False, model=model, required_bound=required_bound, certainty_bound=certainty_bound)
 
 
-def data_collection(output_directory_path, max_num_images=10000, starting_index=0, num_augmentations_per_image=10):
-    face_detection_helper(collect_data=True, output_directory_path=output_directory_path, max_num_images=max_num_images, starting_index=starting_index, num_augmentations_per_image=num_augmentations_per_image)
+def data_collection(output_directory_path, max_num_images=10000, starting_index=0, num_augmentations_per_image=10, timestep_for_image_download = 0):
+    face_detection_helper(collect_data=True, output_directory_path=output_directory_path, max_num_images=max_num_images, starting_index=starting_index, num_augmentations_per_image=num_augmentations_per_image, timestep_for_image_download=timestep_for_image_download)

@@ -2,16 +2,17 @@ import cv2
 import numpy as np
 from PIL import Image
 import os
+from constants import PATH_TO_FACE_MATCHING
 
 # TODO: Replace with Stephens detector
 detector = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
-recognizer = cv2.face.LBPHFaceRecognizer.create()
+recognizer = cv2.createLBPHFaceRecognizer()
 
 faces = []
 ids = []
 
-for folder in os.listdir('./app_data'):
-    path = f'./app_data/{folder}'
+for folder in os.listdir(PATH_TO_FACE_MATCHING):
+    path = os.path.join(PATH_TO_FACE_MATCHING, folder)
     if os.path.isdir(path):
         id = int(folder)
         for image in os.listdir(path):

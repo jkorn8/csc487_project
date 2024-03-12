@@ -3,6 +3,8 @@ import os
 import numpy as np
 import tensorflow as tf
 from deepface import DeepFace
+from constants import PATH_TO_FACE_MATCHING, MODEL_INPUT_IMAGE_DIMENSIONS
+from helpers import preprocess, deprocess_image
 
 # Files required:
 # - an "app_data" directory with folders corresponding to names of people
@@ -13,24 +15,23 @@ one_time = False
 CAMERA_INDEX = 0
 COLOR_RED = (0, 0, 255)
 COLOR_GREEN = (0, 255, 0)
-MODEL_INPUT_IMAGE_DIMENSIONS = (100, 100)
 PADDING = 100
 
 # Facial Recognition Setup - load images
-names = ['Josh', 'Stephen']
+names = ['Stephen', 'Josh']
 face_images = []
-for folder in os.listdir('./app_data'):
-    path = f'./app_data/{folder}'
+for folder in os.listdir(PATH_TO_FACE_MATCHING):
+    path = os.path.join(PATH_TO_FACE_MATCHING, folder)
     if os.path.isdir(path):
         id = int(folder)
         for image in os.listdir(path):
-            blob = cv2.imread(f'./app_data/{folder}/{image}')
+            blob = deprocess_image(preprocess(os.path.join(path, image), MODEL_INPUT_IMAGE_DIMENSIONS))
             face_images.append((id, blob))
 model_name = 'Facenet'
 
 # Facial Detection setup
 face_detector = cv2.dnn.readNetFromCaffe("do_not_delete/deploy.prototxt.txt", "do_not_delete/res10_300x300_ssd_iter_140000.caffemodel")
-model = tf.keras.models.load_model('model_final_2.h5')
+model = tf.keras.models.load_model('models/model_final_2.h5')
 
 cap = cv2.VideoCapture(CAMERA_INDEX)
 cap.set(3, 640)

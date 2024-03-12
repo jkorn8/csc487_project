@@ -5,9 +5,12 @@ import random
 from keras.utils import load_img, img_to_array
 from keras.applications import vgg19
 import os
+from deepface import DeepFace
 import albumentations as alb
 import cv2
 from PIL import Image
+from constants import PATH_TO_FACE_MATCHING
+import math
 
 
 def get_progressbar(current, total):
@@ -121,17 +124,54 @@ def deprocess_image(x):
 def get_max_image_index_for_known_images(known_faces_path):
     largest = 0
     for im in os.listdir(known_faces_path):
-        try:
-            num = int(im.split('.')[0])
-            if num > largest:
-                largest = num
-        except ValueError:
-            num = int((im.replace('_', '.')).split('.')[1])
-            if num > largest:
-                largest = num
-        except Exception as e:
-            raise e
+        if im.endswith('.jpg'):
+            try:
+                num = int(im.split('.')[0])
+                if num > largest:
+                    largest = num
+            except ValueError:
+                num = int((im.replace('_', '.')).split('.')[1])
+                if num > largest:
+                    largest = num
+            except Exception as e:
+                raise e
     return largest
+
+
+def model_prediction(recoc_pred, match_pred, required_bound, certainty_bound):
+    try:
+        if match_pred != [None, None]:
+            vals = [0, 0, 0]
+            vals[0] = ((.5)*recoc_pred[0]) + ((.5)*match_pred[0])
+            vals[1] = ((.5)*recoc_pred[1]) + ((.5)*match_pred[1])
+            vals[2] = ((.5)*(recoc_pred[2])) + ((.5)*(2 - match_pred[0] - match_pred[1])/2)
+        else:
+            vals = recoc_pred
+        s = vals.copy()
+        sorted(s)
+        if abs(s[0] - s[1]) < certainty_bound and s[0] > required_bound:
+            return "unsure"
+        for i in range(len(vals)-1):
+            if vals[i] == s[0] and vals[i] > required_bound:
+                return str(i)
+        return "unknown"
+    except:
+        return "unknown"
+
+
+def get_deepface_prediction(image, face_images):
+    num_unique_faces = len(os.listdir(PATH_TO_FACE_MATCHING))
+    totals = [0] * (num_unique_faces-1)
+    validated = [0] * (num_unique_faces-1)
+    for id, face in face_images:
+        result = DeepFace.verify(face, image, model_name='Facenet', enforce_detection=False, detector_backend='opencv')
+        if result['verified']:
+            validated[id] += 1
+        totals[id] += 1
+    out = [0] * (num_unique_faces-1)
+    for i in range((num_unique_faces-1)):
+        out[i] = validated[i] / totals[i]
+    return out
 
 
 def do_data_preprocessing(num_images, input_dimensions,
@@ -147,7 +187,7 @@ def do_data_preprocessing(num_images, input_dimensions,
     unknown_faces_dir = os.listdir(unknown_face_path)
     random.shuffle(unknown_faces_dir)
     num_known_faces = num_images
-    num_unknown_faces = min(round(num_images*(1+1/2)), len(unknown_faces_dir))
+    num_unknown_faces = min(round(num_images*(3)), len(unknown_faces_dir))
 
     process_known_face_1 = get_distribution_array(num_known_faces, percent_training=percent_training,
                                                 percent_validation=percent_validation)
