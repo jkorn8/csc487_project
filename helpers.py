@@ -142,13 +142,14 @@ def model_prediction(recoc_pred, match_pred, required_bound, certainty_bound):
     try:
         if match_pred != [None, None]:
             vals = [0, 0, 0]
-            vals[0] = ((.5)*recoc_pred[0]) + ((.5)*match_pred[0])
-            vals[1] = ((.5)*recoc_pred[1]) + ((.5)*match_pred[1])
-            vals[2] = ((.5)*(recoc_pred[2])) + ((.5)*(2 - match_pred[0] - match_pred[1])/2)
+            vals[0] = ((.75)*recoc_pred[0]) + ((.25)*match_pred[0])
+            vals[1] = ((.75)*recoc_pred[1]) + ((.25)*match_pred[1])
+            vals[2] = ((.75)*(recoc_pred[2])) + ((.25)*(2 - match_pred[0] - match_pred[1])/2)
         else:
             vals = recoc_pred
         s = vals.copy()
-        sorted(s)
+        s = sorted(s)
+        s.reverse()
         if abs(s[0] - s[1]) < certainty_bound and s[0] > required_bound:
             return "unsure"
         for i in range(len(vals)-1):
@@ -156,6 +157,7 @@ def model_prediction(recoc_pred, match_pred, required_bound, certainty_bound):
                 return str(i)
         return "unknown"
     except:
+        print("Failed")
         return "unknown"
 
 

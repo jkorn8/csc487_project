@@ -122,20 +122,28 @@ def face_detection_helper(collect_data, output_directory_path='test_images',
                     if not (pred is None):
                         if pred == "unknown":
                             cv2.putText(image, 'unknown', (endX, endY), cv2.FONT_HERSHEY_SIMPLEX,
+                                        2, COLOR_RED, 2, cv2.LINE_AA)
+                            cv2.putText(image, str([round(record, 2) for record in recoc_pred]), (startX + 5, endY - 8), cv2.FONT_HERSHEY_SIMPLEX,
                                         1, COLOR_RED, 2, cv2.LINE_AA)
                             cv2.rectangle(image, (startX, startY), (endX, endY), COLOR_RED, 5)
                         elif pred == "unsure":
                             cv2.putText(image, 'unsure', (endX, endY), cv2.FONT_HERSHEY_SIMPLEX,
+                                        2, COLOR_RED, 2, cv2.LINE_AA)
+                            cv2.putText(image, str([round(record, 2) for record in recoc_pred]), (startX + 5, endY - 8), cv2.FONT_HERSHEY_SIMPLEX,
                                         1, COLOR_RED, 2, cv2.LINE_AA)
                             cv2.rectangle(image, (startX, startY), (endX, endY), COLOR_YELLOW, 5)
                         else:
                             for i in range(len(NAMES)):
                                 if pred == str(i):
                                     cv2.putText(image, NAMES[i], (endX + 5, endY), cv2.FONT_HERSHEY_SIMPLEX,
+                                                2, COLOR_GREEN, 2, cv2.LINE_AA)
+                                    cv2.putText(image, str([round(record, 2) for record in recoc_pred]), (startX + 5, endY - 8), cv2.FONT_HERSHEY_SIMPLEX,
                                                 1, COLOR_GREEN, 2, cv2.LINE_AA)
                                     cv2.rectangle(image, (startX, startY), (endX + 5, endY), COLOR_GREEN, 5)
                     else:
                         cv2.putText(image, 'Unknown', (endX, endY), cv2.FONT_HERSHEY_SIMPLEX,
+                                    2, COLOR_RED, 2, cv2.LINE_AA)
+                        cv2.putText(image, str([round(record, 2) for record in recoc_pred]), (startX + 5, endY - 8), cv2.FONT_HERSHEY_SIMPLEX,
                                     1, COLOR_RED, 2, cv2.LINE_AA)
                         cv2.rectangle(image, (startX, startY), (endX, endY), COLOR_RED, 5)
                 else:
