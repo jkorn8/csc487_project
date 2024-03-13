@@ -67,7 +67,7 @@ reduce_lr = cb.ReduceLROnPlateau(monitor='val_loss',
                               factor=0.2,  # Factor by which the learning rate will be reduced
                               patience=4,  # Number of epochs with no improvement after which learning rate will be reduced
                               verbose=1)
-model_checkpoint = cb.ModelCheckpoint(os.path.join(MODEL_PATH, 'model_best_with_josh_2.h5'),
+model_checkpoint = cb.ModelCheckpoint(os.path.join(MODEL_PATH, 'model_best_with_josh_3.h5'),
                                       monitor='val_accuracy',  # Choose the metric to monitor (e.g., val_loss, val_accuracy)
                                       mode='max',  # 'max' if monitoring accuracy, 'min' if monitoring loss
                                       save_best_only=True,  # Save only the best model
@@ -100,4 +100,4 @@ plt.ylabel("Loss")
 plt.legend()
 plt.show()
 
-model.save(os.path.join(MODEL_PATH, 'model_final_with_josh_2.h5'))
+model.save(os.path.join(MODEL_PATH, 'model_final_with_josh_3.h5'))

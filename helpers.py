@@ -6,11 +6,8 @@ from keras.utils import load_img, img_to_array
 from keras.applications import vgg19
 import os
 from deepface import DeepFace
-import albumentations as alb
-import cv2
 from PIL import Image
 from constants import PATH_TO_FACE_MATCHING
-import math
 
 
 def get_progressbar(current, total):
