@@ -9,6 +9,7 @@ import albumentations as alb
 from PIL import Image
 
 CAMERA_INDEX = 0    # May need to change to 1, different index for different devices
+# CAMERA_INDEX = 'http://10.144.215.131:4747/video'
 COLOR_RED = (0, 0, 255)
 COLOR_GREEN = (0, 255, 0)
 COLOR_YELLOW = (0, 255, 255)
